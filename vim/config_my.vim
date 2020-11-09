@@ -8,6 +8,9 @@ nmap <M-s> :w<CR>
 " switching buffers
 nmap <leader>m :b#<CR>
 
+" json format
+nmap <leader>j :%!python -m json.tool<CR>
+
 " Quickly edit/reload the vimrc file
 nmap <silent> <leader>ev :e $MYVIMRC<CR>
 nmap <silent> <leader>sv :so $MYVIMRC<CR>
@@ -32,6 +35,13 @@ autocmd FileType ruby setlocal ts=2 sts=2 sw=2 expandtab
 " yaml and Dokerfile
 autocmd FileType yaml setlocal ts=2 sts=2 sw=2 expandtab
 
-set clipboard=unnamed
+
+" Jenkinsfile
+autocmd BufRead,BufNewFile Jenkinsfile set filetype=groovy
+autocmd FileType groovy setlocal ts=2 sts=2 sw=2 expandtab
+
+set clipboard=unnamedplus
 set updatetime=100
 set showtabline=0
+set laststatus=0
+set cmdheight=1
