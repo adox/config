@@ -25,6 +25,7 @@
           - curl
           - sudo
           - nodejs
+          - lf
         state: present
         update_cache: true
 
