@@ -1,0 +1,109 @@
+---
+- name: Setup WSL Ubuntu for development
+  hosts: localhost
+  become: true
+  vars:
+    user: adam
+    fish_path: /usr/bin/fish
+    config_repo: https://github.com/adox/config
+    ssh_key_path: "/home/adam/.ssh/id_ed25519"
+    ssh_key_comment: "your_email@example.com"
+
+  tasks:
+
+    - name: Ensure required packages are installed
+      apt:
+        name:
+          - fish
+          - fzf
+          - neovim
+          - silversearcher-ag
+          - age
+          - gnupg2
+          - tmux
+          - git
+          - curl
+          - sudo
+          - nodejs
+        state: present
+        update_cache: true
+
+    - name: Get latest SOPS version
+      shell: |
+        curl -s https://api.github.com/repos/mozilla/sops/releases/latest |
+        grep tag_name | cut -d '"' -f 4
+      register: sops_version_raw
+      changed_when: false
+
+    - set_fact:
+        sops_version: "{{ sops_version_raw.stdout | regex_replace('v', '') }}"
+
+    - name: Download SOPS binary
+      get_url:
+        url: "https://github.com/getsops/sops/releases/download/v3.10.2/sops-v3.10.2.linux.amd64"
+        dest: /usr/local/bin/sops
+        mode: '0755'
+
+    - name: Generate SSH key if not present
+      become_user: "{{ user }}"
+      command: ssh-keygen -t ed25519 -C "{{ ssh_key_comment }}" -f "{{ ssh_key_path }}" -N ""
+      args:
+        creates: "{{ ssh_key_path }}"
+
+    - name: Set Neovim as default editor globally
+      lineinfile:
+        path: /etc/environment
+        line: 'EDITOR=nvim'
+        create: yes
+        state: present
+
+    - name: Set fish as the default shell for user
+      user:
+        name: "{{ user }}"
+        shell: "{{ fish_path }}"
+
+    - name: Ensure fish config directory exists
+      file:
+        path: "/home/{{ user }}/.config/fish"
+        state: directory
+        owner: "{{ user }}"
+        mode: '0755'
+
+    - name: Add aliases and env to fish config
+      blockinfile:
+        path: "/home/{{ user }}/.config/fish/config.fish"
+        marker: "# {mark} ANSIBLE MANAGED ALIASES"
+        block: |
+          alias gs="git status"
+          alias vi="nvim"
+          set -gx EDITOR nvim
+          set -gx VISUAL nvim
+      become_user: "{{ user }}"
+
+    - name: Make adam passwordless sudo
+      copy:
+        dest: /etc/sudoers.d/{{ user }}
+        content: "{{ user }} ALL=(ALL) NOPASSWD:ALL\n"
+        mode: '0440'
+
+    - name: Clone adox config repository
+      become_user: "{{ user }}"
+      git:
+        repo: "{{ config_repo }}"
+        dest: "/home/{{ user }}/.config/adox-config"
+        update: yes
+
+    - name: Link vim config to Neovim
+      file:
+        src: "/home/{{ user }}/.config/adox-config/vim"
+        dest: "/home/{{ user }}/.config/nvim"
+        state: link
+        force: true
+
+    - name: Link tmux.conf
+      file:
+        src: "/home/{{ user }}/.config/adox-config/tmux/.tmux.conf"
+        dest: "/home/{{ user }}/.tmux.conf"
+        state: link
+        force: true
+
