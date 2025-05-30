@@ -86,6 +86,13 @@
         content: "{{ user }} ALL=(ALL) NOPASSWD:ALL\n"
         mode: '0440'
 
+    - name: Set Git to auto-setup remote tracking on first push
+      become_user: "{{ user }}"
+      git_config:
+        name: push.autoSetupRemote
+        scope: global
+        value: "true"
+
     - name: Clone adox config repository
       become_user: "{{ user }}"
       git:
